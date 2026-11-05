@@ -51,6 +51,8 @@ jobs:
           sudo apt-get clean
           df -h /
 
+      # INSTALL_GPU=1 时 Dockerfile 安装 requirements-gpu-cu124.txt，
+      # 与 nvidia/cuda:12.4.1 基础镜像保持同一 CUDA 主版本
       - name: 构建 GPU 镜像（CUDA 12.4 + cuDNN 9）
         run: |
           docker build \

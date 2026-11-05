@@ -5,6 +5,9 @@ ARG BASE=nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 FROM ${BASE}
 
 ARG INSTALL_GPU=1
+# 默认与基础镜像 CUDA 12.4 对齐；若换用 12.8 基础镜像，可传
+#   --build-arg GPU_REQ=requirements-gpu-cu128.txt
+ARG GPU_REQ=requirements-gpu-cu124.txt
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -21,12 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt requirements-gpu.txt requirements-cpu.txt ./
+COPY requirements.txt requirements-gpu-cu124.txt requirements-gpu-cu128.txt requirements-cpu.txt ./
 RUN python3 -m pip install --upgrade pip \
     && python3 -m pip install -r requirements.txt \
     && if [ "$INSTALL_GPU" = "1" ]; then \
          python3 -m pip uninstall -y onnxruntime && \
-         python3 -m pip install -r requirements-gpu.txt; \
+         python3 -m pip install -r "$GPU_REQ"; \
        fi
 
 # Playwright 自带 Chromium：容器内没有宿主机的 Chrome，必须装一份

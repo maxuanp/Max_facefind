@@ -1,0 +1,17 @@
+# GPU 依赖：CUDA 12.x（12.0 ~ 12.7）对齐
+# 适用：nvidia-smi 右上角 "CUDA Version: 12.x"（x < 8），NVIDIA 驱动 >= 550
+# 用法：先装 requirements.txt，再装本文件（不要把 onnxruntime 与 onnxruntime-gpu 混装）
+#
+# 版本锁定原则：torch 与 onnxruntime-gpu 都必须在 CUDA 12 主版本内，
+# 因此这里用 +cu124 本地版本号，禁止 pip 去 PyPI 解析出 CUDA 13 的 torch。
+#
+# 若驱动较老（CUDA 11.8），请改用 requirements-gpu-cu128.txt 之外的方案：
+# 自行把 onnxruntime-gpu 固定到 1.16.3（CUDA 11.8 + cuDNN 8），并安装 torch 的 cu118 构建。
+
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+spandrel>=0.3
+# onnxruntime-gpu 1.23.x 面向 CUDA 12.x + cuDNN 9，与上面的 torch 同一主版本
+onnxruntime-gpu==1.23.2

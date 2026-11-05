@@ -1,4 +1,4 @@
-# facefind 基础依赖（CPU 也能跑；GPU 用户请改用 requirements-gpu.txt）
+# facefind 基础依赖（CPU 也能跑；GPU 用户再追加 requirements-gpu-cu124.txt 或 -cu128.txt）
 # Python 3.10 ~ 3.12（推荐 3.11）
 
 fastapi>=0.110
@@ -13,7 +13,7 @@ watchdog>=4.0
 
 # 人脸检测/识别（InsightFace）。Windows 上安装时可能需要 Visual C++ Build Tools。
 insightface>=0.7.3
-onnxruntime>=1.16          # CPU 推理；GPU 用户见 requirements-gpu.txt
+onnxruntime>=1.16          # CPU 推理；GPU 用户会先卸载它，改由 GPU 依赖文件安装 onnxruntime-gpu
 
 # 浏览器抓取（小红书/微博）。已装 Chrome/Edge 时无需再下载 Playwright 自带浏览器。
 playwright>=1.40

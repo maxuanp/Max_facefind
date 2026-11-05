@@ -38,9 +38,25 @@ if not exist "%VENV%" (
   if errorlevel 1 goto :fail
   where nvidia-smi >nul 2>nul
   if not errorlevel 1 (
-    echo [setup] NVIDIA GPU detected, installing GPU extras ...
+    rem choose cu124 / cu128 by the CUDA version reported by nvidia-smi
+    set "GPU_REQ=%ROOT%\requirements-gpu-cu124.txt"
+    set "CUDAVLINE="
+    for /f "tokens=*" %%L in ('nvidia-smi 2^>nul ^| findstr /C:"CUDA Version"') do set "CUDAVLINE=%%L"
+    if defined CUDAVLINE (
+      set "CUDAV=!CUDAVLINE:*CUDA Version:=!"
+      for /f "tokens=1" %%v in ("!CUDAV!") do set "CUDAV=%%v"
+      for /f "tokens=1,2 delims=." %%a in ("!CUDAV!") do (
+        set "CUMAJ=%%a"
+        set "CUMIN=%%b"
+      )
+      if not defined CUMIN set "CUMIN=0"
+      if defined CUMAJ if !CUMAJ! GEQ 13 set "GPU_REQ=%ROOT%\requirements-gpu-cu128.txt"
+      if defined CUMAJ if !CUMAJ! EQU 12 if !CUMIN! GEQ 8 set "GPU_REQ=%ROOT%\requirements-gpu-cu128.txt"
+      echo [setup] CUDA Version !CUDAV! detected.
+    )
+    echo [setup] NVIDIA GPU detected, installing GPU extras from "!GPU_REQ!" ...
     "%VENV%" -m pip uninstall -y onnxruntime >nul 2>nul
-    "%VENV%" -m pip install -r "%ROOT%\requirements-gpu.txt"
+    "%VENV%" -m pip install -r "!GPU_REQ!"
     if errorlevel 1 echo [WARN] GPU extras failed. Face detection will fall back to CPU.
   )
 )

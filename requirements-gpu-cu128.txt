@@ -1,0 +1,16 @@
+# GPU 依赖：CUDA 12.8+ / CUDA 13 驱动对齐
+# 适用：nvidia-smi 右上角 "CUDA Version: 12.8" 或更高（含 13.x），
+#       以及 RTX 50 系（Blackwell）等需要 cu128 构建的显卡；NVIDIA 驱动 >= 570
+# 用法：先装 requirements.txt，再装本文件（不要把 onnxruntime 与 onnxruntime-gpu 混装）
+#
+# 版本锁定原则：torch 用 +cu128 本地版本号，与驱动 >= 570 的 CUDA 12.8 运行时对齐；
+# onnxruntime-gpu 1.23.x 仍属 CUDA 12.x 主版本（12.8 是 12 的次版本），
+# 不要换成任何 CUDA 13 专用 ORT 构建，避免与 torch 的 12.8 组合跨主版本。
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+torch==2.7.1+cu128
+torchvision==0.22.1+cu128
+spandrel>=0.3
+# 与 cu124 那套保持同一个 ORT 版本，但运行在 CUDA 12.x 运行时上
+onnxruntime-gpu==1.23.2

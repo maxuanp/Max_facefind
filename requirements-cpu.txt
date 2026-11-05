@@ -1,3 +1,5 @@
 # Docker / Linux 下的无 CUDA 依赖（纯 CPU）
-# 若宿主机已有 NVIDIA GPU 与 nvidia-container-toolkit，请用 requirements-gpu.txt。
+# 若宿主机已有 NVIDIA GPU 与 nvidia-container-toolkit，请按 CUDA 版本二选一：
+#   驱动 CUDA 12.0~12.7 → requirements-gpu-cu124.txt
+#   驱动 CUDA 12.8+ / RTX 50 系 → requirements-gpu-cu128.txt
 -r requirements.txt

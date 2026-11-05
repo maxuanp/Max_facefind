@@ -54,7 +54,7 @@ GPU 需要 NVIDIA 驱动；onnxruntime-gpu 与 CUDA/cuDNN 的版本对应关系�
 
 1. 安装 Python 3.11，勾选 **Add python.exe to PATH**。
 2. 解压发行包，双击 **`启动.bat`**。首次运行会自动：
-   - 创建 `.venv` 并安装依赖（检测到 `nvidia-smi` 时额外装 GPU 依赖）；
+   - 创建 `.venv` 并安装依赖（检测到 `nvidia-smi` 时，按它的 CUDA 版本自动选 `cu124` 或 `cu128` 那一套）；
    - 从 `config.example.yaml` 生成 `config.yaml`；
    - 下载 InsightFace `buffalo_l` 与基础超分权重到 `models/`；
    - 启动托盘宿主并打开 `http://127.0.0.1:8765/`。
@@ -74,9 +74,15 @@ py -3 -m venv .venv
 # 2) 基础依赖（CPU 可用）
 .venv\Scripts\python -m pip install -r requirements.txt
 
-# 3) GPU 用户追加（会替换 onnxruntime 为 onnxruntime-gpu）
+# 3) GPU 用户追加：按 nvidia-smi 的 CUDA Version 二选一
+#    CUDA 12.0 ~ 12.7 → cu124；CUDA 12.8+ / RTX 50 系 → cu128
 .venv\Scripts\python -m pip uninstall -y onnxruntime
-.venv\Scripts\python -m pip install -r requirements-gpu.txt
+
+# 3a) 驱动 CUDA 12.0 ~ 12.7（大多数 30/40 系）
+.venv\Scripts\python -m pip install -r requirements-gpu-cu124.txt
+
+# 3b) 驱动 CUDA 12.8+ / RTX 50 系（Blackwell）
+# .venv\Scripts\python -m pip install -r requirements-gpu-cu128.txt
 
 # 4) 配置与模型
 copy config.example.yaml config.yaml
@@ -106,14 +112,18 @@ copy config.example.yaml config.yaml
 
 ### 5.1 版本对应（装错会报 `CUDA error 126` 或 DLL not found）
 
-| 组件 | 版本要求 |
-|---|---|
-| `onnxruntime-gpu` 1.19+ | CUDA 12.x + cuDNN 9 |
-| `onnxruntime-gpu` 1.16.3 | CUDA 11.8 + cuDNN 8 |
-| `torch` cu124 wheel | 自带 CUDA 12.4 运行时，驱动 ≥ 550 |
-| `torch` cu121 wheel | 驱动 ≥ 525 |
+| 依赖文件 | 适用驱动 / 显卡 | torch | onnxruntime-gpu |
+|---|---|---|---|
+| `requirements-gpu-cu124.txt` | CUDA 12.0 ~ 12.7，驱动 ≥ 550（30/40 系多数） | `2.6.0+cu124` | `1.23.2`（CUDA 12.x + cuDNN 9） |
+| `requirements-gpu-cu128.txt` | CUDA 12.8 及以上（含 13.x），驱动 ≥ 570（含 RTX 50 系） | `2.7.1+cu128` | `1.23.2`（CUDA 12.x + cuDNN 9） |
 
-`requirements-gpu.txt` 默认按 CUDA 12.4 写；老驱动把 `cu124` 改成 `cu121`，并把 `onnxruntime-gpu` 固定为 `1.16.3`。
+判断方法：直接运行 `nvidia-smi`，看右上角 `CUDA Version: 12.4` 这样的字段（它是驱动支持的 CUDA 上限，不是已安装的 toolkit 版本）：
+
+- `12.0 ~ 12.7` → 装 `requirements-gpu-cu124.txt`
+- `12.8` 或更高 → 装 `requirements-gpu-cu128.txt`
+- 命令不存在或输出里没有 CUDA Version → 不装 GPU 依赖，按 CPU 跑
+
+两套文件都锁定 `+cu124` / `+cu128` 本地版本号，确保 torch 与 onnxruntime-gpu 留在 CUDA 12 主版本内，避免 pip 从 PyPI 解析出 CUDA 13 的 torch，出现「torch 能跑、onnxruntime 找不到 cuDNN」的混搭。
 
 程序启动时会自动把 `CUDA_PATH`、`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12*` 以及 pip 安装的 `nvidia/*/bin` 加到 `PATH`（见 `facefind/env.py`），所以多数情况下只需要装对 wheel。
 
@@ -308,6 +318,8 @@ docker run -d --name facefind -p 127.0.0.1:8765:8765 ^
 
 访问 `http://127.0.0.1:8765/`。端口只发布到回环，避免暴露到局域网。
 
+> GPU 镜像默认用 `requirements-gpu-cu124.txt`，与 `nvidia/cuda:12.4.1-cudnn-runtime` 基础镜像对齐。若把 `BASE` 换成 12.8 的 CUDA 镜像，构建时追加 `--build-arg GPU_REQ=requirements-gpu-cu128.txt`。
+
 ### 15.2 Windows 宿主机的 GPU 直通
 
 - **Docker Desktop（WSL2 后端）**：安装最新 NVIDIA Windows 驱动即可，`docker-compose.yml` 里的 `deploy.resources.reservations.devices` 会被识别；`docker run` 用 `--gpus all`。
@@ -392,7 +404,7 @@ facefind/
 **CUDA error 126 / `cublasLt64_*.dll` 找不到**
 
 - 原因：onnxruntime-gpu 与 CUDA/cuDNN 版本不匹配，或 DLL 不在 PATH。
-- 处理：确认 `onnxruntime-gpu` 版本对应 CUDA 12.x + cuDNN 9（1.19+）或 CUDA 11.8 + cuDNN 8（1.16.3）；装 `pip install nvidia-cudnn-cu12`；设置 `CUDA_PATH`；仍不行就 `faces.device: cpu` 先跑通。
+- 处理：先确认装的是与本机 `nvidia-smi` 版本匹配的那套——CUDA 12.0~12.7 用 `requirements-gpu-cu124.txt`，12.8+ 用 `requirements-gpu-cu128.txt`，两套都把 `onnxruntime-gpu` 锁在 1.23.2（CUDA 12.x + cuDNN 9）；再装 `pip install nvidia-cudnn-cu12`、设置 `CUDA_PATH`；仍不行就 `faces.device: cpu` 先跑通。
 
 **cookie 失效 / 一直要求登录**
 

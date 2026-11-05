@@ -5,6 +5,8 @@ services:
       args:
         # 纯 CPU 机器改成 "0"
         INSTALL_GPU: "1"
+        # 与 CUDA 12.4 基础镜像对齐；换成 12.8 基础镜像时改为 requirements-gpu-cu128.txt
+        GPU_REQ: requirements-gpu-cu124.txt
     image: facefind:latest
     container_name: facefind
     # 只发布到本机回环，避免把管理界面暴露到局域网
