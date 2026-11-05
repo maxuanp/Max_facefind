@@ -1,0 +1,41 @@
+services:
+  facefind:
+    build:
+      context: .
+      args:
+        # 纯 CPU 机器改成 "0"
+        INSTALL_GPU: "1"
+    image: facefind:latest
+    container_name: facefind
+    # 只发布到本机回环，避免把管理界面暴露到局域网
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      # 配置（首次可先复制 config.example.yaml 为 config.yaml）
+      - ./config.yaml:/app/config.yaml:ro
+      # 索引 / 日志 / 缩略图 / 回收站 / 浏览器 profile 都在 data/
+      - ./data:/app/data
+      # 模型权重（下载后放这里，容器重建不用重下）
+      - ./models:/app/models
+      # 参考照
+      - ./faces:/app/faces
+      # 成品与原始下载
+      - ./downloads:/app/downloads
+      - ./raw:/app/_raw
+      # cookie 文件（容器内无法扫码登录，见 README）
+      - ./secrets:/app/secrets
+    environment:
+      - TZ=Asia/Shanghai
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    shm_size: "1gb"
+    restart: unless-stopped
+    # ---- GPU 直通（Docker Desktop / WSL2 下的 Docker Engine 都适用）----
+    # CPU 版请整段删除
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

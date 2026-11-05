@@ -1,0 +1,50 @@
+MIT License
+
+Copyright (c) 2026 facefind contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+第三方组件与模型许可（重要）
+
+本仓库的代码采用上面的 MIT 许可，但代码依赖的第三方模型/组件有各自的许可，
+尤其注意：
+
+1. InsightFace 的模型（buffalo_l / antelopev2 等）
+   - InsightFace 源码为 MIT，但其官方发布的预训练模型（model zoo）仅允许
+     **非商业研究用途**。若你要用于商业场景，请自行取得授权或替换为可商用的模型。
+   - 模型文件不随本仓库分发，需要用户自行下载（见 scripts/fetch_models.py）。
+
+2. Ultralytics YOLO（姿态模型，可选）
+   - Ultralytics 代码与权重采用 AGPL-3.0（或商业许可）。仅导出/使用 ONNX 权重
+     也建议先阅读其许可条款；商用请购买 Ultralytics 商业许可或改用其它姿态模型。
+
+3. Real-ESRGAN / GFPGAN / SwinIR / HAT 等超分权重
+   - 各项目许可不同（多为 BSD/Apache/MIT，部分权重另有研究用途限制）。
+     使用前请查看对应仓库的 LICENSE 与权重说明。
+   - 这些权重同样不随本仓库分发。
+
+4. Playwright / Chromium
+   - Playwright 为 Apache-2.0；Chromium 为 BSD 风格许可，另含第三方组件声明。
+
+5. 数据合规
+   - 本项目只做本地图片管理。抓取与存储他人肖像/照片可能涉及肖像权、著作权与
+     个人信息保护相关法律（如中国《个人信息保护法》）。请只处理你有权使用的素材，
+     并自行承担合规责任；不要用本项目批量收集他人隐私信息。

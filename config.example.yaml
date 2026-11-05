@@ -1,0 +1,147 @@
+# facefind 示例配置
+# 用法：复制本文件为 config.yaml，再按自己的目录/人数修改。
+# 所有相对路径都相对于本文件所在目录；本文件即项目根目录。
+
+output_dir: downloads        # 成品目录：downloads/<人名>/
+raw_dir: _raw                # 原始下载目录：_raw/<站点>/<人名>/，方便重跑
+index_db: data/index.db      # 跨运行索引（SQLite，含人脸 embedding，务必不要提交到仓库）
+log_dir: data/logs           # 每次运行的决策日志（JSONL，可用于校准阈值）
+
+network:
+  proxy: ""                  # 需要代理时填 http://127.0.0.1:7890
+  timeout: 20
+  retries: 3                 # 失败重试次数（指数退避）
+  backoff_seconds: 1.0
+  sites:                     # 按站点限速
+    baidu:
+      concurrency: 3
+      delay_min_ms: 100
+      delay_max_ms: 400
+    weibo:
+      concurrency: 2
+      delay_min_ms: 300
+      delay_max_ms: 700
+    xiaohongshu:
+      concurrency: 2
+      delay_min_ms: 400
+      delay_max_ms: 900
+
+search:
+  sources: [baidu]           # 默认只开百度；weibo / xiaohongshu 需要登录态后再开
+  count: 5                   # 每个人最终成功收录数量（review 不计入）
+  page_size: 30
+  max_pages: 8
+  detail_budget: 12          # 每人每关键词单轮最多打开的小红书详情页数（风控节流）
+  min_width: 200
+  min_height: 200
+
+# 模型档位：balanced（默认，速度快）| max_quality（顶配，小脸召回更好）
+# 档位定义见下方 profiles；faces/framing 段显式写值会覆盖档位，留空/不写则跟随档位。
+profile: balanced
+
+profiles:
+  balanced:
+    faces:
+      model: buffalo_l
+      det_size: 640
+      det_thresh: 0.50
+      min_face_px: 80
+      accept_threshold: 0.55
+      review_threshold: 0.35
+      dedupe_threshold: 0.92
+    framing:
+      model: yolov8n-pose
+      input_size: 640
+  max_quality:
+    faces:
+      model: antelopev2
+      det_size: 640
+      det_thresh: 0.50
+      min_face_px: 80
+      accept_threshold: 0.55
+      review_threshold: 0.35
+      dedupe_threshold: 0.92
+    framing:
+      model: yolov8n-pose
+      input_size: 640
+
+faces:
+  dir: faces                 # 参考照目录：faces/<人名>/*.jpg
+  map_file: data/face_map.yaml   # 参考照平铺目录时用「文件名 -> 人名」映射表
+  model:                     # 留空 = 跟随 profile；可填 buffalo_l / antelopev2
+  root: models/insightface   # insightface 模型根目录（项目内持久目录）
+  device: auto               # auto | gpu | cpu
+  det_size:                  # 留空 = 跟随 profile
+  det_thresh:                # 留空 = 跟随 profile
+  allow_multiple_faces: false    # false = 多人脸参考照告警并跳过
+  similarity_mode: max       # max（默认）| mean | centroid
+  accept_threshold:          # 留空 = 跟随 profile（两档均 0.55，切换模型后建议重新校准）
+  review_threshold:          # 留空 = 跟随 profile（两档均 0.35）
+  dedupe_threshold:          # 留空 = 跟随 profile（两档均 0.92）
+  min_face_px:               # 留空 = 跟随 profile（两档均 80）
+
+quality:
+  # 清晰度综合评分权重（自动按可用项归一化）
+  weights:
+    resolution: 0.4          # 分辨率
+    sharpness: 0.3           # 拉普拉斯锐度
+    face_ratio: 0.2          # 人脸占比
+    compression: 0.1         # 压缩痕迹（JPEG 量化表）
+
+dedupe:
+  enabled: true
+  phash_threshold: 8         # 64 位 pHash 汉明距离 <= 该值视为近重复
+
+# 构图过滤：只收全身 / 包含完整上半身（默认策略）
+framing:
+  mode: prefer_full_body     # prefer_full_body（默认，全身+完整上半身）/ allow_upper_body / strict_full_body
+  edge_cut_tolerance: 0.03   # 人物框距画面边缘的容差（占画面比例）
+  min_person_ratio: 0.45     # 人物框高度占画面比例；过小视为特写/远景
+  model:                     # 留空 = 跟随 profile；可选 yolov8n/m/x-pose、yolo11m/x-pose
+  model_path: ""             # 显式指定 ONNX 路径时优先于 model
+  input_size:                # 留空 = 跟随 profile（640）
+
+# 排除目录（只读）：里面是已有的、不希望重复下载的图片
+exclude:
+  dirs: []                   # 示例：["D:/photos/已有图库"]，递归扫描
+  files: []                  # 也可单独指定若干文件
+  phash_threshold: 8         # 0-16；字节哈希精确命中优先
+  dhash_threshold: 10        # dHash 辅助判据
+  recursive: true
+  crop_tolerance: true       # 多尺度/中心裁剪容忍
+  rebuild: false             # 首次扫描后增量；true = 每次强制重建
+  watch: true                # 目录监听（增删图片时自动更新排除索引）
+  watch_debounce_ms: 600
+  watch_sync_on_start: true
+  scan_on_run: auto          # auto（监听健康则跳过）/ always / never
+  watch_skip: [downloads, _raw, data]   # 监听时跳过的子目录（程序输出目录总会跳过）
+
+browser:
+  # 独立 persistent profile：只使用项目内这个目录，绝不读写系统 Chrome/Edge 默认配置
+  profile_dir: data/browser_profile
+  channel: ""                          # "" = 自动（优先本机 Chrome，其次 Edge；仅复用可执行文件）
+  headless: true                       # 搜索/检查无头；打开登录窗口时强制有头
+  login_timeout: 300
+  login_keep_open: [xiaohongshu]
+  cookie_dir: secrets                  # 只读 cookie 文件目录：xhs.txt / weibo.txt
+
+auth:
+  xiaohongshu:
+    enabled: false           # 默认关闭；登录成功后再在 UI「账号状态」或这里开启
+    cookie: ""               # 留空则读取 secrets/xhs.txt（一行 name=value; ...）
+  weibo:
+    enabled: false
+    cookie: ""               # 留空则读取 secrets/weibo.txt（需含 SUB）
+
+# 每人可单独覆盖：count / queries / 阈值 / 比对模式 / 站点 / 参考照
+people: []
+# 示例（也可以全部用 UI 的「人物」页管理，UI 会写 data/ui_settings.yaml）：
+# people:
+#   - name: 张三
+#     count: 8
+#     queries: ["张三 高清", "张三 写真"]
+#     accept_threshold: 0.55
+#     review_threshold: 0.35
+#     similarity_mode: max
+#     reference_images: []       # 留空则自动从 faces/张三/ 发现
+#     sources: [baidu]

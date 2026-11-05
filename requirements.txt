@@ -1,0 +1,22 @@
+# facefind 基础依赖（CPU 也能跑；GPU 用户请改用 requirements-gpu.txt）
+# Python 3.10 ~ 3.12（推荐 3.11）
+
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+numpy>=1.24,<3
+opencv-python>=4.8
+Pillow>=10
+PyYAML>=6
+requests>=2.31
+watchdog>=4.0
+
+# 人脸检测/识别（InsightFace）。Windows 上安装时可能需要 Visual C++ Build Tools。
+insightface>=0.7.3
+onnxruntime>=1.16          # CPU 推理；GPU 用户见 requirements-gpu.txt
+
+# 浏览器抓取（小红书/微博）。已装 Chrome/Edge 时无需再下载 Playwright 自带浏览器。
+playwright>=1.40
+
+# 托盘宿主（Windows 原生托盘）
+pystray>=0.19

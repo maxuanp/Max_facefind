@@ -1,0 +1,17 @@
+# GPU 依赖（NVIDIA 显卡）
+# 用法：先装 requirements.txt，再装本文件；两者不要同时装 onnxruntime 与 onnxruntime-gpu。
+#
+# CUDA 版本对照（很重要，装错会报 CUDA error 126 / DLL not found）：
+#   - torch cu124  -> 需要 NVIDIA 驱动 >= 550（或 CUDA 12.4 运行时，随 wheel 自带）
+#   - torch cu121  -> 驱动 >= 525
+#   - onnxruntime-gpu 1.19+ -> CUDA 12.x + cuDNN 9
+#   - onnxruntime-gpu 1.16.3 -> CUDA 11.8 + cuDNN 8（老驱动选这个）
+#
+# 下面按 CUDA 12.4 为例；如你的驱动较老，把 cu124 换成 cu121，并把
+# onnxruntime-gpu 固定到 1.16.3（CUDA 11.8 版）。
+
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.4
+torchvision>=0.19
+spandrel>=0.3
+onnxruntime-gpu>=1.19

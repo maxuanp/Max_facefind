@@ -1,0 +1,3 @@
+# Docker / Linux 下的无 CUDA 依赖（纯 CPU）
+# 若宿主机已有 NVIDIA GPU 与 nvidia-container-toolkit，请用 requirements-gpu.txt。
+-r requirements.txt

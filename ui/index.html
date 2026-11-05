@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>facefind · 人脸搜图</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="导航">☰</button>
+<aside class="sidebar" id="sidebar">
+  <div class="brand">face<span>find</span><small>人脸搜图</small></div>
+  <nav id="nav">
+    <a data-route="#/" href="#/">概览</a>
+    <a data-route="#/run" href="#/run">任务运行</a>
+    <a data-route="#/results" href="#/results">结果图片墙</a>
+    <a data-route="#/review" href="#/review">待复核 <em id="reviewCount"></em></a>
+    <a data-route="#/exclude" href="#/exclude">排除库</a>
+    <a data-route="#/storage" href="#/storage">存储</a>
+    <a data-route="#/auth" href="#/auth">账号状态</a>
+    <a data-route="#/settings" href="#/settings">设置</a>
+  </nav>
+  <div class="side-foot">
+    <div id="footBackup" class="foot-note"></div>
+    <div id="footBrowser" class="foot-note"></div>
+    <div class="foot-ver">仅监听 127.0.0.1</div>
+  </div>
+</aside>
+<div id="navMask" class="nav-mask"></div>
+
+<main>
+  <!-- ============ 概览 ============ -->
+  <section class="page active" id="page-home">
+    <div class="page-head">
+      <div>
+        <h1>概览</h1>
+        <p class="sub">人员、最近一次运行、账号与索引健康。图片墙与其它功能在左侧二级页面。</p>
+      </div>
+      <div class="actions">
+        <button id="quickStart" class="primary">开始任务（全部人员）</button>
+        <button id="homeSettings" class="ghost">任务设置</button>
+      </div>
+    </div>
+
+    <div class="stat-row" id="homeStats"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>人员</h2>
+        <button id="toggleAddPerson" class="ghost">新增人员</button>
+      </div>
+      <form id="newPersonForm" class="inline-form" hidden>
+        <input id="newPersonName" placeholder="新增人名，例如 张三" autocomplete="off">
+        <button class="primary" type="submit">添加人员</button>
+      </form>
+      <div id="homePeople" class="people-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>最近一次运行</h2>
+        <button id="homeRunLink" class="ghost">查看运行页</button>
+      </div>
+      <div id="homeLastRun"></div>
+    </div>
+
+    <div class="panel">
+      <h2>账号与索引健康</h2>
+      <dl id="homeHealth" class="kv"></dl>
+    </div>
+  </section>
+
+  <!-- ============ 人员详情 ============ -->
+  <section class="page" id="page-person">
+    <div class="page-head">
+      <div>
+        <button id="personBack" class="ghost back-link">← 返回概览</button>
+        <h1 id="personName">人员</h1>
+        <p class="sub" id="personSub"></p>
+      </div>
+      <div class="actions">
+        <button id="personExport">导出总览</button>
+        <button id="personCalibrate" class="ghost">阈值校准</button>
+        <button id="personRerun" class="primary">重跑该人</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>参考照</h2>
+        <span id="personRefSummary" class="muted"></span>
+        <button id="personCheckRefs" class="ghost">重新质检</button>
+      </div>
+      <div id="personRefs" class="ref-grid"></div>
+      <div class="dropzone" id="personDrop">拖拽参考照到这里，或点击选择文件（支持多选）</div>
+      <input type="file" id="personFile" accept="image/*" multiple hidden>
+      <p class="hint">参考照建议 5–10 张单人正面清晰照；不合格会标红，可删除后重传。</p>
+    </div>
+
+    <div class="panel">
+      <h2>关键词与阈值</h2>
+      <div class="person-fields" id="personFields">
+        <label>关键词（逗号分隔）<input data-f="queries" autocomplete="off"></label>
+        <label>目标张数<input data-f="count" type="number" min="1"></label>
+        <label>A 收录<input data-f="accept_threshold" type="number" step="0.01" min="0" max="1"></label>
+        <label>B 复核<input data-f="review_threshold" type="number" step="0.01" min="0" max="1"></label>
+        <button id="personSave" class="primary">保存</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>成品墙</h2>
+        <div class="actions">
+          <label>视图
+            <select id="personGalleryStatus">
+              <option value="saved">成品</option>
+              <option value="review">待复核</option>
+              <option value="rejected">已丢弃</option>
+              <option value="blocked">已屏蔽</option>
+            </select>
+          </label>
+          <label>构图标签
+            <select id="personFraming">
+              <option value="">全部</option>
+              <option value="full_body">全身</option>
+              <option value="upper_body_complete">完整上半身</option>
+              <option value="obscured_or_seated">坐姿/遮挡</option>
+              <option value="face_closeup">脸部特写</option>
+              <option value="upper_body_incomplete">上半身不完整</option>
+              <option value="unknown">未判定</option>
+            </select>
+          </label>
+          <button type="button" id="personSrBatch" class="ghost">整批超分</button>
+          <button type="button" id="personSrReplace" class="ghost">整批替换（可恢复）</button>
+          <button type="button" id="personSrOverwrite" class="ghost danger">整批覆盖（不可恢复）</button>
+        </div>
+      </div>
+      <div id="personStats" class="muted"></div>
+      <div class="select-bar">
+        <button type="button" class="ghost" data-select="page">全选本页</button>
+        <button type="button" class="ghost" data-select="all">全选当前筛选</button>
+        <button type="button" class="ghost" data-select="invert">反选</button>
+        <button type="button" class="ghost" data-select="none">清空选择</button>
+        <span class="muted">勾选后可批量删除 / 屏蔽 / 改为通过 / 超分；切换筛选、翻页后选择保留</span>
+      </div>
+      <div id="personBatch" class="batch-bar" hidden>
+        <span id="personBatchCount" class="muted"></span>
+        <button data-batch="delete">删除</button>
+        <button data-batch="block">屏蔽</button>
+        <button data-batch="deleteblock" class="danger">删除并屏蔽</button>
+        <button data-batch="sr">批量超分</button>
+        <button data-batch="sr-replace">超分并替换</button>
+        <button data-batch="sr-overwrite" class="danger">超分并覆盖</button>
+        <button data-batch="accept">改为通过</button>
+        <button data-batch="undo" class="ghost">撤销手动收录</button>
+        <button data-batch="clear" class="ghost">取消选择</button>
+      </div>
+      <div id="personGallery" class="img-grid"></div>
+      <div class="load-more">
+        <button id="personMore" class="ghost" hidden>加载更多</button>
+        <span id="personMoreHint" class="load-hint"></span>
+      </div>
+      <div id="personSentinel" class="scroll-sentinel" aria-hidden="true"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>该人日志</h2>
+        <span class="muted">最近一次运行的事件日志</span>
+      </div>
+      <pre id="personLogs" class="log-box small"></pre>
+    </div>
+  </section>
+
+  <!-- ============ 任务运行 ============ -->
+  <section class="page" id="page-run">
+    <div class="page-head">
+      <div>
+        <h1>任务运行</h1>
+        <p class="sub">实时进度与日志；支持暂停 / 继续 / 停止。</p>
+      </div>
+      <div class="actions">
+        <button id="pauseBtn">暂停</button>
+        <button id="resumeBtn">继续</button>
+        <button id="stopBtn" class="danger">停止</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="run-top">
+        <span id="jobState" class="pill idle">空闲</span>
+        <span id="jobPerson" class="muted"></span>
+        <span id="jobElapsed" class="muted"></span>
+      </div>
+      <div class="progress"><div id="jobBar"></div></div>
+      <div id="jobCounts" class="count-grid"></div>
+      <div id="jobError" class="error-line"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>站点实时统计</h2>
+        <span id="siteUpdated" class="muted"></span>
+      </div>
+      <div class="site-overall">
+        <div class="site-overall-head">
+          <span>整体进度</span>
+          <b id="siteOverallText">0 / 0</b>
+        </div>
+        <div class="progress"><div id="siteOverallBar"></div></div>
+      </div>
+      <div id="siteCards" class="site-cards">
+        <div class="empty">尚未启动任务。启动后按站点实时显示候选数、收录与判掉原因。</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>最近运行站点汇总</h2>
+        <button id="toggleHistory" class="ghost">展开</button>
+      </div>
+      <div id="runHistory" class="run-history" hidden></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>实时日志</h2><button id="clearLogBtn" class="ghost">清屏</button></div>
+      <pre id="logBox" class="log-box"></pre>
+    </div>
+  </section>
+
+  <!-- ============ 结果图片墙 ============ -->
+  <section class="page" id="page-results">
+    <div class="page-head">
+      <div>
+        <h1>结果图片墙</h1>
+        <p class="sub">缩略图按需生成、分页加载；点击看原图。视图可切换成品/待复核/已丢弃；已丢弃可「改为通过」，卡片右上角 ⋯ 可删除（移入回收）、屏蔽、删除并屏蔽；勾选可批量操作。</p>
+      </div>
+      <div class="actions"><button id="refreshResults">刷新</button></div>
+    </div>
+    <div class="panel toolbar">
+      <label>人员 <select id="resultPerson"><option value="">全部人员</option></select></label>
+      <label>视图
+        <select id="galleryStatus">
+          <option value="saved">成品</option>
+          <option value="review">待复核</option>
+          <option value="rejected">已丢弃</option>
+          <option value="blocked">已屏蔽</option>
+        </select>
+      </label>
+      <label>构图标签
+        <select id="framingFilter">
+          <option value="">全部</option>
+          <option value="full_body">全身</option>
+          <option value="upper_body_complete">完整上半身</option>
+          <option value="obscured_or_seated">坐姿/遮挡</option>
+          <option value="face_closeup">脸部特写</option>
+          <option value="upper_body_incomplete">上半身不完整</option>
+          <option value="unknown">未判定</option>
+        </select>
+      </label>
+      <span id="framingStats" class="muted"></span>
+    </div>
+    <div class="select-bar">
+      <button type="button" class="ghost" data-select="page">全选本页</button>
+      <button type="button" class="ghost" data-select="all">全选当前筛选</button>
+      <button type="button" class="ghost" data-select="invert">反选</button>
+      <button type="button" class="ghost" data-select="none">清空选择</button>
+      <span class="muted">「已丢弃」可批量删除并屏蔽；选择在切换筛选 / 翻页后保留</span>
+    </div>
+    <div id="resultsBatch" class="batch-bar" hidden>
+      <span id="resultsBatchCount" class="muted"></span>
+      <button data-batch="delete">删除</button>
+      <button data-batch="block">屏蔽</button>
+      <button data-batch="deleteblock" class="danger">删除并屏蔽</button>
+      <button data-batch="sr">批量超分</button>
+      <button data-batch="sr-replace">超分并替换</button>
+      <button data-batch="sr-overwrite" class="danger">超分并覆盖</button>
+      <button data-batch="accept">改为通过</button>
+      <button data-batch="undo" class="ghost">撤销手动收录</button>
+      <button data-batch="clear" class="ghost">取消选择</button>
+    </div>
+    <div id="resultsGrid" class="img-grid"></div>
+    <div class="load-more">
+      <button id="resultsMore" class="ghost" hidden>加载更多</button>
+      <span id="resultsMoreHint" class="load-hint"></span>
+    </div>
+    <div id="resultsSentinel" class="scroll-sentinel" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 待复核 ============ -->
+  <section class="page" id="page-review">
+    <div class="page-head">
+      <div>
+        <h1>待复核</h1>
+        <p class="sub">A~B 之间的候选图：逐张收录 / 丢弃，或批量处理。收录会移入成品目录。</p>
+      </div>
+      <div class="actions">
+        <button id="reviewAcceptBtn" class="primary">批量收录</button>
+        <button id="reviewDiscardBtn" class="danger">批量丢弃</button>
+      </div>
+    </div>
+    <div id="reviewGroups" class="result-groups"></div>
+  </section>
+
+  <!-- ============ 排除库 ============ -->
+  <section class="page" id="page-exclude">
+    <div class="page-head">
+      <div>
+        <h1>排除库</h1>
+        <p class="sub">已索引目录 / 文件数，以及重建索引。移除只取消配置引用，不会删除磁盘上的目录或文件。</p>
+      </div>
+      <div class="actions"><button id="rebuildExclude">重建索引</button></div>
+    </div>
+    <div class="panel grid-2">
+      <div>
+        <h2>配置目录</h2>
+        <div id="excludeRoots" class="path-list"></div>
+        <div class="path-row"><button type="button" id="addExcludeDir2">添加目录…</button></div>
+        <h2 class="mt">单独文件</h2>
+        <div id="excludeFiles" class="path-list"></div>
+        <p class="hint">在「设置」里也可添加排除目录；「移除」只取消引用，磁盘目录与文件保持原样。</p>
+      </div>
+      <div>
+        <h2>索引状态</h2>
+        <div id="excludeStats" class="kv"></div>
+        <h2 class="mt">实时监听 / 任务前扫描</h2>
+        <div id="excludeWatch" class="kv"></div>
+        <pre id="excludeDecision" class="log-box small"></pre>
+        <h2 class="mt">重建输出</h2>
+        <pre id="excludeReport" class="log-box small"></pre>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>黑名单（屏蔽后不再下载）</h2>
+        <span id="blockedCount" class="muted"></span>
+      </div>
+      <div id="blockedList" class="blocked-list"></div>
+      <p class="hint">屏蔽只影响后续任务：下载前拦 URL，下载后拦 pHash/dHash。图片文件仍保留在成品目录。</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>屏蔽管理（永久不再出现）</h2>
+        <span id="blockManageCount" class="muted"></span>
+        <button id="refreshBlockManage" class="ghost">刷新</button>
+      </div>
+      <p class="hint">屏蔽 ≠ 删除：<b>不移动、不删除任何文件</b>，只登记图片地址 / 指纹与人员；图片墙、筛选结果和后续采集都不会再出现。名单独立保存在 <code>data/blocklist.json</code>，解除后图片立即恢复显示。</p>
+      <div class="block-manage-cols">
+        <div>
+          <h3>已屏蔽图片（<span id="blockImgCount">0</span>）</h3>
+          <div id="blockImgList" class="blocked-list"></div>
+        </div>
+        <div>
+          <h3>已屏蔽人员（<span id="blockPeopleCount">0</span>）</h3>
+          <div id="blockPersonList" class="blocked-list"></div>
+          <div class="path-row block-person-row">
+            <select id="blockPersonSelect"></select>
+            <label class="inline-check"><input type="checkbox" id="blockPersonWithFiles"> 同时把该人文件移入回收站</label>
+            <button id="blockPersonAdd" class="danger">屏蔽人员</button>
+          </div>
+          <p class="hint">不勾选「同时移入回收站」时，只影响显示与采集，文件完全不动。</p>
+        </div>
+      </div>
+      <div class="path-row"><button id="unblockAll" class="ghost danger">全部解除屏蔽</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>回收站（删除的成品）</h2>
+        <span id="recycleCount" class="muted"></span>
+        <button id="refreshRecycle" class="ghost">刷新</button>
+      </div>
+      <div id="recycleList" class="blocked-list"></div>
+      <p class="hint">删除只是把文件移入 <code>data/recycle/&lt;人名&gt;/</code>，回收目录只增不删；可随时恢复到成品目录。</p>
+    </div>
+  </section>
+
+  <!-- ============ 存储容量 ============ -->
+  <section class="page" id="page-storage">
+    <div class="page-head">
+      <h1>存储容量</h1>
+      <p class="sub">按类别与人员统计占用；清理只允许项目内已知子目录，删除后同步索引与计数。</p>
+      <button id="refreshStorage" class="ghost">刷新</button>
+    </div>
+
+    <div id="storageSummary" class="stat-grid"></div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>按类别</h2><span id="storageTotalText" class="muted"></span></div>
+      <div id="storageBars" class="storage-bars"></div>
+      <div class="table-wrap">
+        <table class="table" id="storageTable">
+          <thead><tr><th>类别</th><th>大小</th><th>文件数</th><th>最近修改</th><th>路径</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>按人员</h2><select id="storagePerson"></select></div>
+      <div id="storagePersonStats" class="stat-grid"></div>
+      <div class="row-actions">
+        <button id="clearPersonRaw" class="ghost">清空该人 _raw</button>
+        <button id="clearPersonRecycle" class="danger">永久删除该人回收</button>
+        <button id="clearPersonDownloads" class="danger">清理该人成品（需输入人名）</button>
+      </div>
+      <div class="table-wrap mt">
+        <table class="table" id="storagePersonTable">
+          <thead><tr><th>人员</th><th>成品</th><th>待复核</th><th>_raw</th><th>回收</th><th>合计</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>清理（谨慎操作）</h2></div>
+      <div class="row-actions">
+        <button id="clearRawAll" class="ghost">清空全部 _raw</button>
+        <button id="clearThumbs" class="ghost">清空缩略图缓存</button>
+        <button id="clearRecycleAll" class="danger">永久清空回收站</button>
+        <button id="clearLogs" class="ghost">清空日志</button>
+      </div>
+      <p class="hint warn">index.db 与浏览器档案不在可清理列表中：清理索引会导致全量重扫，清理浏览器档案需要重新登录微博/小红书。回收目录清理为永久删除，不可恢复。</p>
+    </div>
+  </section>
+
+  <!-- ============ 账号状态 ============ -->
+  <section class="page" id="page-auth">
+    <div class="page-head">
+      <div>
+        <h1>账号状态</h1>
+        <p class="sub">浏览器登录态、当前登录账号、Cookie 文件可读性、最后检查时间。</p>
+      </div>
+      <div class="actions"><button id="checkAuthBtn">检查两站登录态</button></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>浏览器会话隔离（独立账号）</h2>
+        <button id="verifyIsolation" class="ghost">验证隔离</button>
+      </div>
+      <div id="browserInfo" class="kv"></div>
+      <p class="hint">本工具只用项目内的 <code>data/browser_profile</code>（独立 user_data_dir），
+        不读取/不写入系统 Chrome/Edge 默认配置目录，因此登录的是另一个账号，不影响你日常使用的账号。</p>
+      <div id="isolationResult" class="kv"></div>
+    </div>
+    <div id="authCards" class="auth-cards"></div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section class="page" id="page-settings">
+    <div class="page-head">
+      <div>
+        <h1>设置</h1>
+        <p class="sub">站点选择、双阈值、review 开关、构图过滤、下载目录与排除目录。</p>
+      </div>
+      <div class="actions">
+        <button id="saveSettingsBtn">保存配置</button>
+        <button id="startJobBtn" class="primary">开始任务</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>要运行的人员</h2>
+      <div id="taskPeople" class="chip-row"></div>
+      <p class="hint">不勾选任何人员时默认处理全部人员；点「概览」的人员卡片可进入详情维护参考照。</p>
+    </div>
+
+    <div class="panel grid-2">
+      <div>
+        <h2>站点</h2>
+        <div class="chip-row" id="sourceChips">
+          <label class="chip"><input type="checkbox" value="baidu" checked> 百度图片</label>
+          <label class="chip"><input type="checkbox" value="weibo"> 微博</label>
+          <label class="chip"><input type="checkbox" value="xiaohongshu"> 小红书</label>
+        </div>
+        <p class="hint">微博/小红书需要先在「账号状态」完成登录；遇到验证码会停止该站点任务。</p>
+      </div>
+      <div>
+        <h2>阈值</h2>
+        <div class="field-grid">
+          <label>直接收录 A <input id="acceptThreshold" type="number" step="0.01" min="0" max="1"></label>
+          <label>复核下限 B <input id="reviewThreshold" type="number" step="0.01" min="0" max="1"></label>
+          <label>每人目标张数 <input id="taskCount" type="number" min="1" max="200"></label>
+          <label>最小人脸 px <input id="minFacePx" type="number" min="0" max="512"></label>
+          <label>每关键词最多翻页 <input id="maxPages" type="number" min="1" max="30"></label>
+          <label>每关键词详情页预算 <input id="detailBudget" type="number" min="1" max="120" title="小红书单轮最多打开多少个详情页；越大越快，也越容易被站点限流"></label>
+          <label class="switch-line"><input id="reviewEnabled" type="checkbox"> 开启 review（关闭时 A 以下直接丢弃）</label>
+        </div>
+        <p class="hint">图片墙「已丢弃」视图里的「改为通过」默认不受每人目标张数限制（manual_override_count=true）；
+          如接口传 false，则超过 count 上限时会拒绝收录。手动收录会在索引中保留 manual_accept 标记，后续重跑不会被更严格阈值反向删除，可在成品墙撤销。</p>
+        <h2 class="mt">模型档位</h2>
+        <div class="field-grid">
+          <label>档位
+            <select id="modelProfile">
+              <option value="balanced">balanced（默认：buffalo_l + yolov8n-pose）</option>
+              <option value="max_quality">max_quality（antelopev2 + yolov8n-pose）</option>
+            </select>
+          </label>
+          <label>人脸模型<input id="faceModel" placeholder="留空跟随档位，可填 buffalo_l / antelopev2"></label>
+          <label>构图模型<input id="framingModel" placeholder="留空跟随档位，可填 yolo11x-pose 等"></label>
+        </div>
+        <p class="hint">模型加载失败会自动回退 buffalo_l / yolov8n-pose；切换档位后建议重新校准阈值。</p>
+
+        <h2 class="mt">构图过滤（只收全身 / 完整上半身）</h2>
+        <div class="field-grid">
+          <label>策略
+            <select id="framingMode">
+              <option value="prefer_full_body">prefer_full_body（默认，全身+完整上半身）</option>
+              <option value="allow_upper_body">allow_upper_body（放宽到不完整上半身）</option>
+              <option value="strict_full_body">strict_full_body（仅全身）</option>
+            </select>
+          </label>
+          <label>边缘容差 <input id="edgeCutTolerance" type="number" step="0.01" min="0" max="0.2"></label>
+          <label>最小人物占比 <input id="minPersonRatio" type="number" step="0.01" min="0" max="1"></label>
+        </div>
+        <p class="hint">默认 prefer_full_body：收全身与完整上半身，脸部特写/不完整上半身丢弃；坐姿/遮挡只标记不直接丢弃。</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>超分辨率</h2>
+      <div class="field-grid">
+        <label>默认模型
+          <select id="srModel">
+            <option value="realesrgan_x4plus">Real-ESRGAN x4plus（通用照片，默认）</option>
+            <option value="swinir_l_x4">SwinIR-L x4 GAN（Transformer，细节更强）</option>
+            <option value="hat_real_gan_x4">HAT Real-GAN x4（最强细节，慢）</option>
+            <option value="realesrgan_anime">Real-ESRGAN anime 6B（插画）</option>
+          </select>
+        </label>
+        <label>倍率
+          <select id="srScale">
+            <option value="4">4x</option>
+            <option value="2">2x</option>
+          </select>
+        </label>
+        <label>面部修复
+          <select id="srFace">
+            <option value="gfpgan">GFPGAN v1.4（推荐）</option>
+            <option value="none">关闭</option>
+          </select>
+        </label>
+        <label>修复融合强度 <input id="srFaceStrength" type="number" step="0.05" min="0" max="1"></label>
+        <label>超分后长边上限 px <input id="srMaxSide" type="number" min="0" max="8192"></label>
+        <label>分块大小（0=显存自适应） <input id="srTile" type="number" min="0" max="1024"></label>
+        <label>JPEG 质量 <input id="srQuality" type="number" min="60" max="100"></label>
+        <label class="switch-line"><input id="srKeepOriginal" type="checkbox" checked disabled> 保留原图（超分结果另存，原图永不覆盖）</label>
+      </div>
+      <div class="sr-model-status">
+        <span class="muted">GPU：</span><b id="srGpuInfo">检测中…</b>
+        <span class="muted">权重目录：</span><code id="srWeightsDir">models/sr</code>
+      </div>
+      <div id="srModelStatusList" class="sr-model-list"></div>
+      <p class="hint">超分结果保存到 <code>data/sr/&lt;人名&gt;/</code>，并写入索引与 metadata；原图路径和计数逻辑不变。
+        模型与源见上方状态列表；SUPIR 需额外的生成式依赖与约 20GB 显存，未提供默认安装。</p>
+    </div>
+
+    <div class="panel grid-2">
+      <div>
+        <h2>下载目录</h2>
+        <div class="path-row">
+          <input id="outputDir" placeholder="downloads">
+          <button type="button" data-dir-target="outputDir">选择…</button>
+        </div>
+        <h2 class="mt">代理（可选）</h2>
+        <input id="proxy" placeholder="http://127.0.0.1:3080">
+      </div>
+      <div>
+        <h2>排除目录</h2>
+        <div id="excludeDirList" class="path-list"></div>
+        <div class="path-row">
+          <button type="button" id="addExcludeDir">添加排除目录…</button>
+        </div>
+        <p class="hint">命中排除库的图片不会下载；排除目录中的文件绝不会被修改或删除。</p>
+        <label class="mt">任务前扫描
+          <select id="excludeScanOnRun">
+            <option value="auto">自动（监听健康时跳过）</option>
+            <option value="always">总是扫描</option>
+            <option value="never">从不扫描（仅依赖实时监听）</option>
+          </select>
+        </label>
+        <p class="hint">自动：实时监听运行中、启动对账已完成、无中断与积压时，跳过每轮任务前的完整增量扫描；
+          任一条件不满足就退回完整扫描，并在运行日志与「排除库」页写明原因。</p>
+      </div>
+      <div>
+        <h2>服务管理</h2>
+        <p class="hint">当前运行方式：<b id="svcMode">检测中…</b></p>
+        <div class="path-row">
+          <button type="button" id="restartSvc">重启服务</button>
+          <button type="button" id="quitSvc" class="danger">退出程序</button>
+        </div>
+        <p class="hint">「重启服务」会断开本页几秒，恢复后自动重连；「退出程序」会结束托盘宿主与后台任务。
+          有任务在运行时，两者都会先给出中断警告。</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+</main>
+
+<div id="lightbox" class="lightbox" hidden>
+  <div class="lightbox-inner" id="lightboxInner"></div>
+</div>
+
+<div id="lbConfirm" class="modal" hidden>
+  <div class="modal-box lb-confirm-box">
+    <h2 id="lbConfirmTitle">确认操作</h2>
+    <div id="lbConfirmBody" class="lb-confirm-body"></div>
+    <div class="modal-actions">
+      <span></span>
+      <button id="lbConfirmCancel" type="button" class="ghost">取消</button>
+      <button id="lbConfirmOk" type="button" class="danger">确认</button>
+    </div>
+  </div>
+</div>
+
+<div id="srModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="srModalTitle">超分</h2>
+      <button id="srModalClose" class="ghost">关闭</button>
+    </div>
+    <div class="sr-form">
+      <label>模型
+        <select id="srDlgModel"></select>
+      </label>
+      <label>倍率
+        <select id="srDlgScale">
+          <option value="4">4x</option>
+          <option value="2">2x</option>
+        </select>
+      </label>
+      <label>面部修复
+        <select id="srDlgFace">
+          <option value="gfpgan">GFPGAN v1.4</option>
+          <option value="none">关闭</option>
+        </select>
+      </label>
+      <label>长边上限 px
+        <input id="srDlgMaxSide" type="number" min="0" max="8192">
+      </label>
+    </div>
+    <p id="srDlgModelNote" class="hint"></p>
+    <div class="sr-replace">
+      <div class="sr-replace-title">保存方式 <span class="muted">（默认保留原图，不选就不动原图）</span></div>
+      <label class="sr-radio">
+        <input type="radio" name="srReplace" value="keep" checked>
+        <span><b>另存为新文件（默认）</b>
+          <small>原图保留，SR 结果保存到 data/sr/…，图片墙显示 SR 徽标。</small></span>
+      </label>
+      <label class="sr-radio">
+        <input type="radio" name="srReplace" value="backup">
+        <span><b>替换原图（可恢复）</b>
+          <small>SR 结果成为正式成品；原图移入 data/recycle/sr_backup/&lt;人名&gt;/（带时间戳，不物理删除），可随时撤销。</small></span>
+      </label>
+      <label class="sr-radio danger">
+        <input type="radio" name="srReplace" value="overwrite">
+        <span><b>彻底覆盖（不可恢复）</b>
+          <small>SR 结果取代原图并物理删除原图，回收站也不留备份，<b>不可撤销</b>；必须输入确认词。</small></span>
+      </label>
+      <div id="srReplaceImpact" class="sr-impact muted"></div>
+      <div id="srConfirmRow" class="sr-confirm" hidden>
+        <label>确认词 <code id="srConfirmHint">彻底覆盖</code></label>
+        <input id="srConfirmWord" type="text" autocomplete="off" spellcheck="false">
+        <span class="muted">提示：单张为「彻底覆盖」，批量（N 张）为「彻底覆盖N」。</span>
+      </div>
+    </div>
+    <div class="sr-compare">
+      <div class="sr-pane">
+        <div class="sr-pane-title">原图 <span class="muted">（点击放大）</span></div>
+        <div id="srOriginalPane" class="sr-pane-img muted">—</div>
+      </div>
+      <div class="sr-pane">
+        <div class="sr-pane-title"><span id="srResultLabel">超分结果</span> <span id="srResultMeta" class="muted"></span> <span class="muted">（点击放大）</span></div>
+        <div id="srResultPane" class="sr-pane-img muted">生成对比后显示</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <span id="srDlgCount" class="muted"></span>
+      <button id="srPreviewBtn" class="ghost">生成对比</button>
+      <button id="srApplyBtn" class="primary">开始超分</button>
+    </div>
+  </div>
+</div>
+
+<div id="srProgress" class="sr-progress" hidden>
+  <div class="sr-progress-head">
+    <strong>超分任务</strong>
+    <button id="srCancel" class="ghost">取消</button>
+  </div>
+  <div class="sr-progress-bar"><div id="srProgressFill"></div></div>
+  <div id="srProgressText" class="muted">等待中…</div>
+</div>
+
+<div id="srQuickModal" class="modal" hidden>
+  <div class="modal-box sr-quick-box">
+    <div class="modal-head">
+      <h2 id="srQuickTitle">超分并覆盖（不可恢复）</h2>
+      <button id="srQuickClose" class="ghost">关闭</button>
+    </div>
+    <div class="sr-quick-body">
+      <p id="srQuickImpact"></p>
+      <p id="srQuickParams" class="muted"></p>
+      <div id="srQuickConfirmRow" class="sr-confirm" hidden>
+        <label>输入确认词 <code id="srQuickWord"></code></label>
+        <input id="srQuickInput" autocomplete="off" spellcheck="false">
+        <span id="srQuickError" class="bad" hidden>确认词不一致</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <span id="srQuickState" class="muted"></span>
+      <button id="srQuickCancel" class="ghost">取消</button>
+      <button id="srQuickGo" class="primary" disabled>开始</button>
+    </div>
+  </div>
+</div>
+
+<div id="srLb" class="sr-lb" hidden>
+  <div class="sr-lb-bar">
+    <span id="srLbTitle" class="sr-lb-title">对比查看</span>
+    <span id="srLbReadout" class="sr-lb-readout">—</span>
+    <div class="sr-lb-tools">
+      <button type="button" id="srLbSync" class="ghost" aria-pressed="true">同步：开</button>
+      <button type="button" id="srLbFace" class="ghost">定位人脸</button>
+      <button type="button" id="srLbOne" class="ghost">1:1 实际像素</button>
+      <button type="button" id="srLbReset" class="ghost">适应窗口</button>
+      <button type="button" id="srLbClose" class="ghost">关闭 (Esc)</button>
+    </div>
+  </div>
+  <div id="srLbStage" class="sr-lb-stage"></div>
+  <div class="sr-lb-foot muted">滚轮以鼠标位置为中心缩放 · 拖动平移 · 双击切换 1:1 · 触屏双指缩放拖动 · Esc 关闭</div>
+</div>
+
+<div id="dirModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><h3>选择目录</h3><button id="dirClose" class="ghost">关闭</button></div>
+    <div class="path-row"><button id="dirUp" class="ghost">上一级</button><span id="dirPath" class="muted"></span></div>
+    <div id="dirList" class="dir-list"></div>
+    <div class="modal-foot"><button id="dirPick" class="primary">选择此目录</button></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
