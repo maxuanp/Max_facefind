@@ -645,7 +645,7 @@ function gatherSettings() {
     count: num($("#taskCount").value, 5),
     min_face_px: num($("#minFacePx").value, 80),
     max_pages: num($("#maxPages").value, 8),
-    detail_budget: num($("#detailBudget").value, 12),
+    detail_budget: num($("#detailBudget").value, 30),
     review_enabled: $("#reviewEnabled").checked,
     profile: $("#modelProfile").value,
     face_model: $("#faceModel").value.trim(),

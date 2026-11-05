@@ -31,7 +31,7 @@ search:
   count: 5                   # 每个人最终成功收录数量（review 不计入）
   page_size: 30
   max_pages: 8
-  detail_budget: 12          # 每人每关键词单轮最多打开的小红书详情页数（风控节流）
+  detail_budget: 30          # 每人每关键词单轮最多打开的小红书详情页数（风控节流）
   min_width: 200
   min_height: 200
 

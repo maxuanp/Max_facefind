@@ -383,7 +383,7 @@ def _run_person(cfg: Config, task: TaskConfig, ref_paths: list[str], engine: Fac
                     expander = getattr(source, "expand_notes", None)
                     if callable(expander):
                         # 详情页只做节流：按 count 缺口限制本轮打开的笔记数，并用
-                        # search.detail_budget 封顶（默认 12，控制站点风控额度）。
+                        # search.detail_budget 封顶（默认 30，控制站点风控额度）。
                         # 整篇笔记的图都已入库时精确跳过，把预算让给更靠后的新笔记。
                         gap = max(0, task.count - _saved_now(index, task.name))
                         budget = max(1, min(int(cfg.search.detail_budget), max(3, gap * 3)))

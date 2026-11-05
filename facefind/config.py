@@ -141,7 +141,7 @@ class SearchConfig:
     max_pages: int = 8
     min_width: int = 200
     min_height: int = 200
-    detail_budget: int = 12        # 单轮单人每个关键词最多打开的小红书详情页数（风控节流）
+    detail_budget: int = 30        # 单轮单人每个关键词最多打开的小红书详情页数（风控节流）
 
 
 @dataclass
@@ -311,7 +311,7 @@ class Config:
             max_pages=int(search.get("max_pages", 8)),
             min_width=int(search.get("min_width", 200)),
             min_height=int(search.get("min_height", 200)),
-            detail_budget=max(1, int(search.get("detail_budget", 12))),
+            detail_budget=max(1, int(search.get("detail_budget", 30))),
         )
 
         browser = raw.get("browser") or {}
